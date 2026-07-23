@@ -6,6 +6,7 @@
   <플랫폼>/<문제폴더>/<아이디>.<확장자>
   숨김 파일과 README.md는 풀이로 치지 않는다.
 """
+import re
 from pathlib import Path
 from urllib.parse import quote
 
@@ -38,6 +39,18 @@ def rel_link(path: Path) -> str:
     return "/".join(quote(seg) for seg in path.relative_to(ROOT).parts)
 
 
+def problem_level(problem_dir: Path) -> str:
+    """문제 README 제목의 [level 2]/[Gold III]에서 난이도 추출."""
+    readme = problem_dir / "README.md"
+    if readme.is_file():
+        m = re.match(r"^#\s*\[([^\]]+)\]",
+                     readme.read_text(encoding="utf-8", errors="ignore").lstrip())
+        if m:
+            lv = m.group(1).strip()
+            return "Lv." + lv[6:].strip() if lv.lower().startswith("level ") else lv
+    return "–"
+
+
 def render(data) -> str:
     if not data:
         return "아직 풀이가 없습니다. 첫 문제를 풀면 자동으로 채워집니다."
@@ -53,8 +66,8 @@ def render(data) -> str:
 
     for platform, problems in data.items():
         lines += [f"### {platform} ({len(problems)})", ""]
-        lines.append("| 문제 | " + " | ".join(members) + " |")
-        lines.append("| --- | " + " | ".join("---" for _ in members) + " |")
+        lines.append("| 문제 | 레벨 | " + " | ".join(members) + " |")
+        lines.append("| --- | --- | " + " | ".join("---" for _ in members) + " |")
         for name, sols in problems.items():
             problem_dir = ROOT / platform / name
             cells = []
@@ -64,7 +77,8 @@ def render(data) -> str:
                         f"[{f.suffix.lstrip('.')}]({rel_link(f)})" for f in sols[m]))
                 else:
                     cells.append("–")
-            lines.append(f"| [{name}]({rel_link(problem_dir)}) | " + " | ".join(cells) + " |")
+            lines.append(f"| [{name}]({rel_link(problem_dir)}) | {problem_level(problem_dir)} | "
+                         + " | ".join(cells) + " |")
         lines.append("")
     return "\n".join(lines).rstrip()
 

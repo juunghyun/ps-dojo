@@ -49,9 +49,53 @@ def nfc(s):
     return unicodedata.normalize("NFC", s)
 
 
-def slug(title):
-    s = re.sub(r"[\s/\\:*?\"<>|.]+", "-", nfc(title)).strip("-")
-    return s or "untitled"
+def compact_title(title):
+    """폴더명용 압축 제목 — 브래킷 접두사·특수문자 제거, 한글 제목은 공백 붙임.
+    '［PCCE 기출문제］ 1번 ／ 문자 출력' → '문자출력', 'ACM Craft' → 'ACM-Craft'"""
+    s = unicodedata.normalize("NFKC", title)       # 전각 → 반각 (［→[, ／→/)
+    s = re.sub(r"\[[^\]]*\]|\([^)]*\)", " ", s)    # [PCCE 기출문제] 등 브래킷 그룹 제거
+    if "/" in s:                                    # '1번 / 문자 출력' → 마지막 조각
+        s = s.split("/")[-1]
+    s = re.sub(r"[^가-힣A-Za-z0-9+ ]+", " ", s)
+    s = re.sub(r"\s+", " ", s).strip()
+    if not s:
+        return "untitled"
+    joiner = "" if re.search(r"[가-힣]", s) else "-"
+    return joiner.join(s.split())[:24].rstrip("-")
+
+
+ROMAN = {"I": "1", "II": "2", "III": "3", "IV": "4", "V": "5"}
+
+
+def level_slug(level):
+    """'Lv.2' → 'lv2', 'Gold III' → 'gold3'. 없으면 None."""
+    if not level:
+        return None
+    if level.startswith("Lv."):
+        return "lv" + level[3:]
+    parts = level.split()
+    if len(parts) == 2 and parts[1] in ROMAN:
+        return parts[0].lower() + ROMAN[parts[1]]
+    return re.sub(r"[^a-z0-9]", "", level.lower()) or None
+
+
+def normalize_level(raw):
+    """'level 0' → 'Lv.0', 백준 티어('Gold III')는 그대로."""
+    raw = raw.strip()
+    return "Lv." + raw[6:].strip() if raw.lower().startswith("level ") else raw
+
+
+def extract_level(readme, rel_path):
+    """난이도 — 백준허브 README 제목의 [level 2]/[Gold III]를 우선,
+    없으면 난이도 폴더명으로 폴백."""
+    if readme:
+        m = re.match(r"^#\s*\[([^\]]+)\]", readme.lstrip())
+        if m:
+            return normalize_level(m.group(1))
+    if len(rel_path.parts) > 1:
+        d = nfc(rel_path.parts[0])
+        return "Lv." + d if d.isdigit() else d
+    return None
 
 
 def scan_archive(archive_root, username):
@@ -79,11 +123,13 @@ def scan_archive(archive_root, username):
                 elif f.suffix:
                     files[f.suffix] = f.read_bytes()
             if files:
+                level = extract_level(readme, d.relative_to(platform_dir))
+                dirname = "-".join(x for x in [level_slug(level), pid, compact_title(title)] if x)
                 problems.append({
                     "platform": platform, "pid": pid, "title": title,
-                    "dir": f"{platform}/{pid}-{slug(title)}",
+                    "dir": f"{platform}/{dirname}",
                     "files": files, "link": link, "readme": readme,
-                    "username": username,
+                    "level": level, "username": username,
                 })
     return problems
 
@@ -162,7 +208,8 @@ def pr_body(user, archive, problems):
     lines = ["백준허브 아카이브에서 자동 미러링된 풀이입니다.", ""]
     for p in problems:
         link = p["link"] or "(링크 없음)"
-        lines.append(f"- **{p['pid']}. {p['title']}** ({p['platform']}) — {link}")
+        tag = f"{p['platform']} {p['level']}" if p["level"] else p["platform"]
+        lines.append(f"- **{p['pid']}. {p['title']}** ({tag}) — {link}")
     lines += [
         "", f"원본 아카이브: https://github.com/{archive}", "",
         f"> 🤖 자동 PR — @{user} 님은 접근법·막힌 지점을 코멘트로 남기고, 상대방은 리뷰를 남겨 주세요.",
@@ -229,8 +276,9 @@ def mirror_member(member, baseline):
                 if remote_branch_exists(branch):
                     print(f"skip: {branch} PR 대기 중")
                     continue
+                tag = f"{p['platform']} {p['level']}" if p["level"] else p["platform"]
                 push_pr(branch, changes,
-                        f"[{p['platform']}] {p['pid']} {p['title']} - {user}",
+                        f"[{tag}] {p['pid']} {p['title']} - {user}",
                         pr_body(user, archive, [p]))
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
