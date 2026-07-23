@@ -68,12 +68,13 @@ def scan_archive(archive_root, username):
             if not m:
                 continue
             pid, title = m.group(1), m.group(2).strip()
-            files, link = {}, None
+            files, link, readme = {}, None, None
             for f in sorted(d.iterdir()):
                 if not f.is_file() or f.name.startswith("."):
                     continue
                 if f.name.lower() == "readme.md":
-                    found = LINK_RE.search(f.read_text(encoding="utf-8", errors="ignore"))
+                    readme = f.read_text(encoding="utf-8", errors="ignore")
+                    found = LINK_RE.search(readme)
                     link = found.group(0) if found else None
                 elif f.suffix:
                     files[f.suffix] = f.read_bytes()
@@ -81,7 +82,8 @@ def scan_archive(archive_root, username):
                 problems.append({
                     "platform": platform, "pid": pid, "title": title,
                     "dir": f"{platform}/{pid}-{slug(title)}",
-                    "files": files, "link": link, "username": username,
+                    "files": files, "link": link, "readme": readme,
+                    "username": username,
                 })
     return problems
 
@@ -122,14 +124,34 @@ def plan_changes(problem, member_baseline):
         if member_baseline.get(target) == digest(content):
             continue  # 연동 이전 풀이 — 기록만 하고 PR 제외
         changes.append((target, content))
-    # 문제 README는 멤버 무관 동일 내용으로 생성 — 양쪽 PR이 같은 파일을 추가해도 충돌 없음
     readme = f"{problem['dir']}/README.md"
     if changes and main_content(readme) is None:
+        changes.append((readme, problem_readme(problem).encode()))
+    return changes
+
+
+# 백준허브 README 중 멤버마다 달라지는 섹션 — 문제 README에서 제외해
+# 어느 멤버가 생성해도 같은 내용이 되게 한다 (양쪽 PR이 추가해도 충돌 없음)
+MEMBER_SECTIONS = {"성능 요약", "채점결과", "제출 일자"}
+
+
+def problem_readme(problem):
+    """아카이브 README에서 문제 설명 전문을 가져오되 멤버 고유 섹션은 제거.
+    아카이브에 README가 없으면 제목·링크만으로 생성."""
+    text = problem.get("readme")
+    if not text:
         body = f"# {problem['pid']}. {problem['title']}\n"
         if problem["link"]:
             body += f"\n- 문제 링크: {problem['link']}\n"
-        changes.append((readme, body.encode()))
-    return changes
+        return body
+    keep, skipping = [], False
+    for line in text.splitlines():
+        m = re.match(r"^(#{2,6})\s*(.+?)\s*$", line)
+        if m:
+            skipping = m.group(2) in MEMBER_SECTIONS
+        if not skipping:
+            keep.append(line.rstrip())
+    return re.sub(r"\n{3,}", "\n\n", "\n".join(keep)).strip() + "\n"
 
 
 def remote_branch_exists(branch):
