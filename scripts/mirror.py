@@ -11,6 +11,7 @@
 같은 브랜치의 PR이 이미 열려 있으면 건드리지 않는다(머지 후 다음 주기에 반영).
 로컬 실행도 가능: gh 인증 상태에서 python3 scripts/mirror.py
 """
+import hashlib
 import json
 import re
 import shutil
@@ -22,6 +23,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 CONFIG_PATH = ROOT / "scripts" / "mirror_config.json"
+BASELINE_PATH = ROOT / "scripts" / "mirror_baseline.json"
 PLATFORM_MAP = {
     "백준": "boj",
     "프로그래머스": "programmers",
@@ -89,13 +91,37 @@ def main_content(path):
     return r.stdout if r.returncode == 0 else None
 
 
-def plan_changes(problem):
-    """main과 달라 커밋이 필요한 (경로, 내용) 목록."""
+def digest(content):
+    return hashlib.sha256(content).hexdigest()
+
+
+def load_baseline():
+    if BASELINE_PATH.exists():
+        return json.loads(BASELINE_PATH.read_text(encoding="utf-8"))
+    return {}
+
+
+def save_baseline(baseline, message):
+    BASELINE_PATH.write_text(
+        json.dumps(baseline, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8")
+    sh("git", "add", str(BASELINE_PATH))
+    sh("git", "-c", f"user.name={BOT_NAME}", "-c", f"user.email={BOT_EMAIL}",
+       "commit", "-m", message)
+    sh("git", "pull", "--rebase", "origin", "main", check=False)
+    sh("git", "push", "origin", "HEAD:refs/heads/main")
+
+
+def plan_changes(problem, member_baseline):
+    """main과도 baseline과도 달라 커밋이 필요한 (경로, 내용) 목록."""
     changes = []
     for ext, content in sorted(problem["files"].items()):
         target = f"{problem['dir']}/{problem['username']}{ext}"
-        if main_content(target) != content:
-            changes.append((target, content))
+        if main_content(target) == content:
+            continue
+        if member_baseline.get(target) == digest(content):
+            continue  # 연동 이전 풀이 — 기록만 하고 PR 제외
+        changes.append((target, content))
     # 문제 README는 멤버 무관 동일 내용으로 생성 — 양쪽 PR이 같은 파일을 추가해도 충돌 없음
     readme = f"{problem['dir']}/README.md"
     if changes and main_content(readme) is None:
@@ -143,7 +169,7 @@ def push_pr(branch, changes, title, body):
         shutil.rmtree(base, ignore_errors=True)
 
 
-def mirror_member(member):
+def mirror_member(member, baseline):
     user, archive = member["username"], member["archive"]
     tmp = tempfile.mkdtemp(prefix="psdojo-archive-")
     try:
@@ -151,7 +177,17 @@ def mirror_member(member):
         if r.returncode != 0:
             print(f"skip {user}: {archive} clone 실패 (레포 없음/비공개?)")
             return
-        pending = [(p, plan_changes(p)) for p in scan_archive(Path(tmp), user)]
+        problems = scan_archive(Path(tmp), user)
+        if user not in baseline:
+            # 첫 스캔 — 연동 시점의 기존 풀이는 baseline으로 기록만 하고 PR을 열지 않는다
+            baseline[user] = {
+                f"{p['dir']}/{user}{ext}": digest(content)
+                for p in problems for ext, content in p["files"].items()
+            }
+            save_baseline(baseline, f"chore: {user} baseline 등록 ({len(problems)}문제는 연동 이전 풀이로 PR 제외)")
+            print(f"{user}: 첫 스캔 — {len(problems)}문제 baseline 기록, PR 없음")
+            return
+        pending = [(p, plan_changes(p, baseline[user])) for p in problems]
         pending = [(p, c) for p, c in pending if c]
         if not pending:
             print(f"{user}: 새 풀이 없음")
@@ -181,8 +217,9 @@ def mirror_member(member):
 def main():
     config = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
     sh("git", "fetch", "origin", "main")
+    baseline = load_baseline()
     for member in config["members"]:
-        mirror_member(member)
+        mirror_member(member, baseline)
 
 
 if __name__ == "__main__":
