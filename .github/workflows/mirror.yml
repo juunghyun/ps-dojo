@@ -1,0 +1,25 @@
+name: 아카이브 미러봇
+
+on:
+  schedule:
+    - cron: "0 * * * *" # 매시 정각
+  workflow_dispatch: {} # Actions 탭에서 수동 실행 가능
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: mirror
+  cancel-in-progress: false
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 아카이브 스캔 → PR 오픈
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/mirror.py
