@@ -217,7 +217,17 @@ def pr_body(user, archive, problems):
     return "\n".join(lines)
 
 
-def push_pr(branch, changes, title, body):
+def member_author(user):
+    """풀이 커밋의 author를 푼 사람 명의로 — 머지되면 본인 잔디에 잡힌다.
+    (committer는 봇 유지, API 실패 시 봇 명의 폴백)"""
+    r = sh("gh", "api", f"users/{user}", "--jq", ".id", check=False)
+    uid = r.stdout.decode().strip() if r.returncode == 0 else ""
+    if uid.isdigit():
+        return f"{user} <{uid}+{user}@users.noreply.github.com>"
+    return f"{BOT_NAME} <{BOT_EMAIL}>"
+
+
+def push_pr(branch, changes, title, body, author):
     base = tempfile.mkdtemp(prefix="psdojo-wt-")
     wt = str(Path(base) / "wt")
     try:
@@ -228,7 +238,7 @@ def push_pr(branch, changes, title, body):
             f.write_bytes(content)
         sh("git", "add", "-A", cwd=wt)
         sh("git", "-c", f"user.name={BOT_NAME}", "-c", f"user.email={BOT_EMAIL}",
-           "commit", "-m", title, cwd=wt)
+           "commit", "-m", title, "--author", author, cwd=wt)
         sh("git", "push", "origin", f"HEAD:refs/heads/{branch}", cwd=wt)
         r = sh("gh", "pr", "create", "--base", "main", "--head", branch,
                "--title", title, "--body", body, check=False, cwd=wt)
@@ -261,6 +271,7 @@ def mirror_member(member, baseline):
         if not pending:
             print(f"{user}: 새 풀이 없음")
             return
+        author = member_author(user)
         if len(pending) > BATCH_THRESHOLD:
             branch = f"mirror/{user}/backfill"
             if remote_branch_exists(branch):
@@ -269,7 +280,8 @@ def mirror_member(member, baseline):
             push_pr(branch,
                     [ch for _, cs in pending for ch in cs],
                     f"[mirror] {user} 풀이 {len(pending)}문제 일괄 반영",
-                    pr_body(user, archive, [p for p, _ in pending]))
+                    pr_body(user, archive, [p for p, _ in pending]),
+                    author)
         else:
             for p, changes in pending:
                 branch = f"mirror/{user}/{p['platform']}-{p['pid']}"
@@ -279,7 +291,8 @@ def mirror_member(member, baseline):
                 tag = f"{p['platform']} {p['level']}" if p["level"] else p["platform"]
                 push_pr(branch, changes,
                         f"[{tag}] {p['pid']} {p['title']} - {user}",
-                        pr_body(user, archive, [p]))
+                        pr_body(user, archive, [p]),
+                        author)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
