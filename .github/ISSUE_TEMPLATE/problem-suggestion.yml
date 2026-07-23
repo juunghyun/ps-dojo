@@ -1,0 +1,26 @@
+name: 문제 제안
+description: 같이 풀 문제를 제안한다
+title: "[제안] "
+body:
+  - type: input
+    id: link
+    attributes:
+      label: 문제 링크
+      placeholder: https://school.programmers.co.kr/learn/courses/30/lessons/42883
+    validations:
+      required: true
+  - type: input
+    id: difficulty
+    attributes:
+      label: 난이도
+      placeholder: Lv.2 / Gold 4 / Medium
+  - type: textarea
+    id: why
+    attributes:
+      label: 왜 이 문제?
+      placeholder: 그리디 감 잡기 좋아 보임 / 면접 단골 유형
+  - type: input
+    id: due
+    attributes:
+      label: 언제까지?
+      placeholder: 이번 주 일요일 (선택)

@@ -1,0 +1,34 @@
+name: 진행표 자동 갱신
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "README.md"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-readme
+  cancel-in-progress: true
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 진행표 생성
+        run: python3 scripts/update_readme.py
+
+      - name: 변경 있으면 커밋
+        run: |
+          if ! git diff --quiet README.md; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add README.md
+            git commit -m "docs: 진행표 자동 갱신"
+            git pull --rebase origin main
+            git push
+          fi

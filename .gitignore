@@ -1,0 +1,15 @@
+# IDE / OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+
+# Java
+*.class
+out/
+build/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
