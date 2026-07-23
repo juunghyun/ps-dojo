@@ -20,11 +20,15 @@
 
 손으로 브랜치 따서 PR 올리는 수동 플로우도 여전히 유효하다 — 컨벤션만 지키면 미러봇과 공존한다. (LeetCode 등 백준허브 미지원 플랫폼은 수동으로)
 
-## 최초 세팅 (1인당 1회)
+## 합류하기 — 셀프 등록 (1인당 1회, 사전 초대 불필요)
 
 1. [백준허브 크롬 확장](https://github.com/BaekjoonHub/BaekjoonHub) 설치 → GitHub 인증
 2. **본인 개인 아카이브 레포**를 연동한다 (예: `<아이디>/algo-archive`, **public** 필수 — 미러봇이 익명으로 clone). ⚠️ ps-dojo에 직접 연동하지 않는다 — 파일 구조가 달라 서로 덮어쓴다.
-3. `scripts/mirror_config.json`에 본인 `username`(GitHub 아이디)과 `archive`(아카이브 레포) 등록
+3. GitHub 웹에서 [`scripts/mirror_config.json`](scripts/mirror_config.json)을 열고 ✏️(연필)로 본인 항목을 추가한다 — 권한이 없어도 **fork + PR이 자동으로 만들어진다.**
+   ```json
+   { "username": "<GitHub 아이디>", "archive": "<아이디>/<아카이브 레포>" }
+   ```
+4. 등록 PR이 머지되면 다음 주기부터 미러링이 시작된다. 리뷰·코멘트는 권한 없이도 가능하고, 본인 PR을 직접 머지하고 싶어지면 그때 collaborator 초대를 받는다.
 
 ## 컨벤션
 
