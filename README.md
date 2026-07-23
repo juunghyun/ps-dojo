@@ -48,5 +48,11 @@
 ## 진행표
 
 <!-- progress:start -->
-아직 풀이가 없습니다. 첫 문제를 풀면 자동으로 채워집니다.
+**전체 1문제** · juunghyun 1
+
+### programmers (1)
+
+| 문제 | juunghyun |
+| --- | --- |
+| [340207-［PCCE-기출문제］-1번-／-문자-출력](programmers/340207-%EF%BC%BBPCCE-%EA%B8%B0%EC%B6%9C%EB%AC%B8%EC%A0%9C%EF%BC%BD-1%EB%B2%88-%EF%BC%8F-%EB%AC%B8%EC%9E%90-%EC%B6%9C%EB%A0%A5) | [py](programmers/340207-%EF%BC%BBPCCE-%EA%B8%B0%EC%B6%9C%EB%AC%B8%EC%A0%9C%EF%BC%BD-1%EB%B2%88-%EF%BC%8F-%EB%AC%B8%EC%9E%90-%EC%B6%9C%EB%A0%A5/juunghyun.py) |
 <!-- progress:end -->
