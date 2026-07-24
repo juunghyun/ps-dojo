@@ -48,11 +48,12 @@
 ## 진행표
 
 <!-- progress:start -->
-**전체 1문제** · juunghyun 1
+**전체 2문제** · juunghyun 2
 
-### programmers (1)
+### programmers (2)
 
 | 문제 | 레벨 | juunghyun |
 | --- | --- | --- |
 | [lv0-340207-문자출력](programmers/lv0-340207-%EB%AC%B8%EC%9E%90%EC%B6%9C%EB%A0%A5) | Lv.0 | [py](programmers/lv0-340207-%EB%AC%B8%EC%9E%90%EC%B6%9C%EB%A0%A5/juunghyun.py) |
+| [lv2-1844-게임맵최단거리](programmers/lv2-1844-%EA%B2%8C%EC%9E%84%EB%A7%B5%EC%B5%9C%EB%8B%A8%EA%B1%B0%EB%A6%AC) | Lv.2 | [py](programmers/lv2-1844-%EA%B2%8C%EC%9E%84%EB%A7%B5%EC%B5%9C%EB%8B%A8%EA%B1%B0%EB%A6%AC/juunghyun.py) |
 <!-- progress:end -->
